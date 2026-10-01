@@ -368,7 +368,7 @@ function nextAfter(st,pid){
 }
 const pname=(st,id)=>(st.players[id]&&st.players[id].name)||'игрок';
 const recentDeals=(st,now=Date.now())=>st.deals.filter(t=>now-t<DAY_MS);
-const leftToday=(st,now)=>(typeof window!=='undefined'&&window.NO_LIMIT)?99:MAX_PER_DAY-recentDeals(st,now).length;
+const leftToday=(st,now)=>(typeof window!=='undefined'&&window.NO_LIMIT)||!st.limitOn?99:MAX_PER_DAY-recentDeals(st,now).length;
 const fmt=n=>Math.round(n).toLocaleString('ru-RU');
 const fmtK=n=>n>=1000&&n%1000===0?(n/1000)+'к':fmt(n);
 function limitMsg(st){
@@ -466,7 +466,7 @@ const A={
     const x=rows[i];if(x.r&&x.b)throw err('Пара уже сложилась — ставка в силе');
     rows.splice(i,1);
   },
-  rbStake(st,me,v){needAdmin(st,me);st.rb.stake=v;st.log=`🎯 Красное-чёрное теперь по ${fmt(v)}`},
+  toggleLimit(st,me){needAdmin(st,me);st.limitOn=!st.limitOn;st.log=st.limitOn?'🛑 Включён лимит: 3 хашламы в сутки':'♾️ Лимит хашлам выключен'},rbStake(st,me,v){needAdmin(st,me);st.rb.stake=v;st.log=`🎯 Красное-чёрное теперь по ${fmt(v)}`},
   next(st,me){
     needAdmin(st,me);
     if(st.phase!=='result')throw err('Хашлама ещё идёт');
@@ -743,7 +743,7 @@ function render(){
     lastTable='';lastPanel='';lastScore='';
   }
   const left=leftToday(S);
-  document.getElementById('day').innerHTML=window.NO_LIMIT?`демо<br><b>без лимита</b>`:`хашлам сегодня<br><b>${MAX_PER_DAY-left} из ${MAX_PER_DAY}</b>`;
+  document.getElementById('day').innerHTML=(window.NO_LIMIT||!S.limitOn)?`${window.NO_LIMIT?'демо':'сегодня'}<br><b>без лимита</b>`:`хашлам сегодня<br><b>${MAX_PER_DAY-left} из ${MAX_PER_DAY}</b>`;
   const sc=scoreHTML();if(sc!==lastScore){document.getElementById('score').innerHTML=sc;lastScore=sc}
   const t=tableHTML();if(t!==lastTable){document.getElementById('tbl').innerHTML=t;lastTable=t}
   const p=panelHTML();if(p!==lastPanel){document.getElementById('pnl').innerHTML=p;lastPanel=p;restoreDraft()}
@@ -759,7 +759,7 @@ function scoreHTML(){
     else if(i===live)x+=`<div class="sc live"><i>Хашлама №${i+1}</i><b>идёт…</b><span>по ${fmtK(S.hand.amount)}</span></div>`;
     else x+=`<div class="sc none"><i>Хашлама №${i+1}</i><b>—</b><span style="color:var(--muted)">ещё не было</span></div>`;
   }
-  return x+`</div><div class="limitnote">${window.NO_LIMIT?'В игре лимит — не больше 3 хашлам в сутки (в демо отключён)':'Лимит — не больше 3 хашлам в сутки'}</div>`;
+  return x+`</div><div class="limitnote">${window.NO_LIMIT?'В игре лимит — не больше 3 хашлам в сутки (в демо отключён)':S.limitOn?'Лимит — не больше 3 хашлам в сутки':'Лимит 3 хашламы в сутки пока выключен'}</div>`;
 }
 function glove(color,dir,a={c:'',s:''}){
   const fill=color==='r'?'#e0303f':'#16131b',st=color==='r'?'#ff9aa3':'#cfcfd8';
@@ -932,7 +932,7 @@ function panelHTML(){
     const res=S.hand&&S.hand.result;
     h=`<div class="log"></div><div class="ttl">🏆 Победил${res&&res.winners.length>1?'и':''} ${res?res.winners.map(id=>esc(pname(S,id))).join(' и '):''}! Котёл <em>${S.hand?fmt(S.hand.pot):''}</em></div>
       <p class="muted">${res?res.name:''}${res&&res.winners.length>1?` — делят поровну, по ${fmt(res.share)}`:''}</p>`;
-    if(left>0)h+=(window.NO_LIMIT?'':`<p class="muted">Осталось хашлам на сегодня: ${left}</p>`)+(isAdmin()?`<div class="row"><button class="btn" data-a="finish">Итоги</button><button class="btn main" data-a="next">🍲 Ещё хашлама</button></div>`:'<p class="muted">Ждём решения админа: ещё хашлама или итоги.</p>');
+    if(left>0)h+=(window.NO_LIMIT||!S.limitOn?'':`<p class="muted">Осталось хашлам на сегодня: ${left}</p>`)+(isAdmin()?`<div class="row"><button class="btn" data-a="finish">Итоги</button><button class="btn main" data-a="next">🍲 Ещё хашлама</button></div>`:'<p class="muted">Ждём решения админа: ещё хашлама или итоги.</p>');
     else h+=`<p class="muted">Это была последняя хашлама на сегодня 🛑</p>`+(isAdmin()?`<div class="row"><button class="btn gold" data-a="finish">Подвести итоги</button></div>`:'<p class="muted">Админ подведёт итоги.</p>');
     return h;
   }
@@ -1042,7 +1042,7 @@ function sheetHTML(){
     <p class="muted" style="margin:0 0 10px">Бай-ин ${me?fmt(me.buyin):0}, на руках ${me?fmt(me.stack):0}${S.rbNet[ME]?`, красное-чёрное ${S.rbNet[ME]>0?'+':''}${fmt(S.rbNet[ME])}`:''}</p>
     <div class="chips">${[50000,100000,250000,500000].map(v=>`<button class="chip" data-a="rebuy" data-v="${v}">+${fmtK(v)}</button>`).join('')}</div>
     ${isAdmin()?`<p class="muted" style="margin:4px 0 6px">Ставка в красное-чёрное</p><div class="chips">${[5000,10000,25000,50000,100000].map(v=>`<button class="chip ${S.rb.stake===v?'on':''}" data-a="rbStake" data-v="${v}">${fmtK(v)}</button>`).join('')}</div>`:''}
-    <button class="btn" data-a="ledger">💸 Расчёты и долги</button>
+    ${isAdmin()?`<button class="btn" data-a="toggleLimit">${S.limitOn?'♾️ Выключить лимит 3 в сутки':'🛑 Включить лимит 3 в сутки'}</button>`:''}<button class="btn" data-a="ledger">💸 Расчёты и долги</button>
     <button class="btn" data-a="rules">📖 Правила</button>
     ${busy||!isAdmin()?'':'<button class="btn gold" data-a="finish">📊 Подвести итоги вечера</button>'}
     ${S.phase==='lobby'?'<button class="btn no" data-a="leave">Встать из-за стола</button>':''}
@@ -1111,7 +1111,7 @@ document.addEventListener('click',e=>{
     case 'share':window.open('https://wa.me/?text='+encodeURIComponent(shareText()),'_blank');break;
     case 'menu':sheet='menu';renderOverlay();break;
     case 'rules':sheet='rules';renderOverlay();break;
-    case 'ledger':sheet='ledger';renderOverlay();break;
+    case 'ledger':sheet='ledger';renderOverlay();break;case 'toggleLimit':act('toggleLimit');break;
     case 'closeSheet':sheet=null;renderOverlay();break;
     case 'rebuy':act('rebuy',+v).then(()=>{sheet=null;renderOverlay()});break;
     case 'leave':sheet=null;act('leave');break;

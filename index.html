@@ -110,7 +110,7 @@ header .neon{font-size:24px;flex:1}
 .seat.turn .ava{box-shadow:0 0 0 3px var(--neon),0 0 18px var(--neon);animation:pulse 1.2s infinite}
 @keyframes pulse{50%{transform:scale(1.07)}}
 .seat.leader .ava{box-shadow:0 0 0 3px var(--brass),0 0 20px var(--brass)}
-.seat.idle{opacity:.55}
+.seat.idle{opacity:.55}.seat.turn .cards{--w:30px;height:40px;margin-top:-10px}
 .crown{position:absolute;left:50%;top:-14px;transform:translateX(-50%);font-size:18px;z-index:3}
 .badge{position:absolute;right:2px;top:24px;font-size:15px;z-index:3;filter:drop-shadow(0 1px 2px #000)}
 .bubble{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);white-space:nowrap;background:var(--ivory);color:var(--cblack);
@@ -906,7 +906,7 @@ function panelHTML(){
   }
   if(ph==='reveal'){
     const hd=S.hand;
-    if(stageHold&&stageHold.no===hd.no&&performance.now()<stageHold.until){
+    if(false){
       const pid=stageHold.pid,nm=handName(eval7([...hd.hole[pid],...hd.board]));
       return h+`<div class="ttl">${esc(pname(S,pid))} вскрылся</div>
         <div class="stage">${[0,1].map(i=>cardHTML(hd.hole[pid][i],{key:`flip:${hd.no}:${pid}:${i}`})).join('')}</div>
@@ -918,8 +918,8 @@ function panelHTML(){
     if(!mine&&!timeout)turnTimer=setTimeout(()=>{lastPanel='';render()},TURN_TIMEOUT-(Date.now()-hd.turnAt)+50);
     const canTap=mine||timeout;
     h+=`<div class="ttl">${mine?'Твоя очередь вскрываться':`Вскрывается ${esc(cp?cp.name:'')}`} <span class="muted">${hd.idx+1} из ${hd.participants.length}</span></div>
-      <div class="stage">${[0,1].map(i=>r[i]?cardHTML(hd.hole[cur][i],{key:`flip:${hd.no}:${cur}:${i}`})
-        :cardHTML(null,{extra:canTap?'tap':'',attrs:canTap?`data-a="rev" data-p="${cur}" data-i="${i}"`:''})).join('')}</div>`;
+      <div class="stage">${myStage(hd,cur,canTap)}</div>`;
+        
     if(mine)h+='<div class="stagehint">Тапай по карте — открывай по одной, не спеши 😏</div>';
     else if(timeout)h+='<div class="stagehint">Игрок молчит больше 30 секунд — можно вскрыть за него</div>';
     if(hd.leaders.length){
@@ -938,7 +938,7 @@ function panelHTML(){
   }
   return h;
 }
-function restoreDraft(){
+function myStage(hd,cur,canTap){const mine=cur===ME;let x='';if(hd.hole[ME]){const r=hd.revealed[ME];x=[0,1].map(i=>r[i]?cardHTML(hd.hole[ME][i],{key:`flip:${hd.no}:${ME}:${i}`}):cardHTML(null,{extra:mine?'tap':'',attrs:mine?`data-a="rev" data-p="${ME}" data-i="${i}"`:''})).join('');if(hd.trashed[ME])x=`<div style="opacity:.45;display:flex;gap:12px">${x}</div>`}else x='<div class="muted">Ты не в этой раздаче — смотри на стол</div>';if(!mine&&canTap){const i=hd.revealed[cur][0]?1:0;x+=`<button class="btn" style="flex:none" data-a="rev" data-p="${cur}" data-i="${i}">Вскрыть за ${esc(pname(S,cur))}</button>`}return x}function restoreDraft(){
   const i=document.getElementById('amt');if(!i)return;
   if(amountDraft)i.value=amountDraft;
   i.oninput=()=>{amountDraft=i.value;markChips()};markChips();
